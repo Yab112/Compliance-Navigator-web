@@ -1,36 +1,24 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { endpoints } from "@/config";
-import { AuthServices } from "@/services";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useGetCurrentUser } from "@/api/auth";
 import { useUserStore } from "@/store";
 import { getAccessToken } from "@/lib/auth-token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser } = useUserStore();
-  const [hasToken, setHasToken] = useState(false);
+  const hasToken = typeof window !== "undefined" && !!getAccessToken();
+  const { currentUser, isError } = useGetCurrentUser(hasToken);
 
   useEffect(() => {
-    setHasToken(!!getAccessToken());
-  }, []);
-
-  const { data, isError } = useQuery({
-    queryKey: [endpoints.auth.me.query],
-    queryFn: AuthServices.getMe,
-    enabled: hasToken,
-    retry: false,
-  });
-
-  useEffect(() => {
-    if (data?.data?.payload?.user) {
-      setUser(data.data.payload.user);
+    if (currentUser) {
+      setUser(currentUser);
       return;
     }
-    if (isError) {
+    if (isError && hasToken) {
       setUser(null);
     }
-  }, [data, isError, setUser]);
+  }, [currentUser, isError, hasToken, setUser]);
 
   return <>{children}</>;
 }
